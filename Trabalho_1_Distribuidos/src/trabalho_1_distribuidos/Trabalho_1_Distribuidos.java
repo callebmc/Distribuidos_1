@@ -20,8 +20,6 @@ public class Trabalho_1_Distribuidos {
     {
    	 final Processo processo = new Processo();
    	 Scanner scanner = new Scanner(System.in);
-   	 System.out.println("Ola!");
-   	 System.out.println("Vamos comecar:");
    	 System.out.println("Entrando no multicast...");
    	 MulticastSocket multicast = new MulticastSocket(processo.multicastPORT);
    	 processo.group  = InetAddress.getByName(processo.multicastAddres);
@@ -63,12 +61,16 @@ public class Trabalho_1_Distribuidos {
 }
 
 final class Processo  {
+    
+    //Propriedas do processo
     public String multicastAddres = "230.0.0.0";
     public int multicastPORT = 6789;
     public InetAddress group;
     final static String CRLF = ",";
     public ArrayList<String> membros = new ArrayList<String>();
     public boolean running = true;
+    
+    //Método para escutar multicast
     public void listenMulticast(MulticastSocket multicast){
    	 try{
    		 while(this.running) {
@@ -81,8 +83,6 @@ final class Processo  {
                             	System.out.println(mensagem[0]);
    		 }
    	 }catch(Exception e){
-   		 //System.out.println("Deu pau listenMultiCast");
-   		 //System.out.println(e.toString());
    	 }
     } 
 }
