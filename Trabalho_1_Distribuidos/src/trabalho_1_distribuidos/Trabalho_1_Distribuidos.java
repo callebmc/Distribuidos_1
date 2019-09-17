@@ -51,19 +51,23 @@ public class Trabalho_1_Distribuidos {
             System.out.println("Status atual");
             System.out.println("O que deseja fazer?");
             System.out.println("1 - Envia Valores 1");
+            System.out.println("2 - Ve o majoritario");
             System.out.println("5 - Sair");
             int opt = Integer.parseInt(scanner.nextLine());
-			switch(opt) {
-                            case 1:
-                                processo.enviaEscolhido(multicast); 
-                                break;
-                            case 5:
-                                System.out.println("Estou saindo amigos");
-                                multicast.leaveGroup(processo.group);
-                                multicast.close();
-                                running = false;
-                                break;
-                        }
+            switch (opt) {
+                case 1:
+                    processo.enviaEscolhido(multicast);
+                    break;
+                case 2:
+                    System.out.println("O valor maior foi " + processo.majoritario());
+                    break;
+                case 5:
+                    System.out.println("Estou saindo amigos");
+                    multicast.leaveGroup(processo.group);
+                    multicast.close();
+                    running = false;
+                    break;
+            }
         }
         System.out.println("Encerrando processo...");
         processo.running = false;
@@ -97,6 +101,7 @@ final class Processo {
     public int[] valores = new int[5];
     //Valor gerado 1 ou 0
     int c;
+
     //Método para escutar multicast
     public void listenMulticast(MulticastSocket multicast) {
         try {
@@ -108,7 +113,7 @@ final class Processo {
                 String[] mensagem = linha.split(CRLF);
                 // Trata a mensagem
                 System.out.println(mensagem[0]);
-                switch(mensagem[0]){
+                switch (mensagem[0]) {
                     case "NovoNoGrupo":
                         this.adicionaNoGrupo(mensagem, multicast);
                         break;
@@ -137,26 +142,29 @@ final class Processo {
         this.c = rand.nextInt(2);
     }
 
-    /*********************MÉTODOS PARA ARMAZENAR INFORMAÇÕES COMO ID E CHAVE DE TODOS OS MEMBROS****************/
+    /**
+     * *******************MÉTODOS PARA ARMAZENAR INFORMAÇÕES COMO ID E CHAVE DE
+     * TODOS OS MEMBROS***************
+     */
     //Método para informar que entrou no multicast
     public void entraGrupo(MulticastSocket multicast) {
         try {
             String mensagemDeEntrada = "NovoNoGrupo" + CRLF;
             // ORIGEM
-            mensagemDeEntrada += this.id + CRLF; 
+            mensagemDeEntrada += this.id + CRLF;
             // VALOR GERADo
-            mensagemDeEntrada += this.c;        
+            mensagemDeEntrada += this.c;
             DatagramPacket data = new DatagramPacket(mensagemDeEntrada.getBytes(), mensagemDeEntrada.length(), this.group, this.multicastPORT);
             multicast.send(data);
         } catch (Exception e) {
         }
     }
-    
-    public void adicionaNoGrupo(String[] mensagem, MulticastSocket multicast){
-        try{
+
+    public void adicionaNoGrupo(String[] mensagem, MulticastSocket multicast) {
+        try {
             PK pk1 = new PK(Integer.parseInt(mensagem[1]), Integer.parseInt(mensagem[2]));
             this.membros.add(pk1);
-            
+
             String resposta = "RespostaDoGrupo" + CRLF;
             //Destinatário
             resposta += mensagem[1] + CRLF;
@@ -168,41 +176,63 @@ final class Processo {
             DatagramPacket data = new DatagramPacket(resposta.getBytes(), resposta.length(), this.group, this.multicastPORT);
             multicast.send(data);
             System.out.println("Adicionado membro " + mensagem[1]);
-        }
-        catch(Exception e){
+        } catch (Exception e) {
         }
     }
-    
+
     //Método para adicionar na lista se não for ele mesmo que enviou
-    public void trataRespostaDoGrupo(String[] mensagem, MulticastSocket multicast){
-        try{
-            if(Integer.parseInt(mensagem[1])==(this.id) && Integer.parseInt(mensagem[4])!=this.id){
-               PK pk1 = new PK(Integer.parseInt(mensagem[2]), Integer.parseInt(mensagem[3]));
-               this.membros.add(pk1);
+    public void trataRespostaDoGrupo(String[] mensagem, MulticastSocket multicast) {
+        try {
+            if (Integer.parseInt(mensagem[1]) == (this.id) && Integer.parseInt(mensagem[4]) != this.id) {
+                PK pk1 = new PK(Integer.parseInt(mensagem[2]), Integer.parseInt(mensagem[3]));
+                this.membros.add(pk1);
             }
+        } catch (Exception e) {
         }
-        catch(Exception e){}
     }
-    /*********************MÉTODOS PARA ARMAZENAR INFORMAÇÕES COMO ID E CHAVE DE TODOS OS MEMBROS****************/
-    
-    /*********************MÉTODOS PARA ENVIAR O VALOR ESCOLHIDO PARA TODOS OS MEMBROS***************************/
-    public void enviaEscolhido(MulticastSocket multicast){
-        try{
+
+    /**
+     * *******************MÉTODOS PARA ARMAZENAR INFORMAÇÕES COMO ID E CHAVE DE
+     * TODOS OS MEMBROS***************
+     */
+
+    /**
+     * *******************MÉTODOS PARA ENVIAR O VALOR ESCOLHIDO PARA TODOS OS MEMBROS**************************
+     */
+    public void enviaEscolhido(MulticastSocket multicast) {
+        try {
             String enviaEscolhido = "CompartilharValor" + CRLF;
             enviaEscolhido += this.c;
             DatagramPacket data = new DatagramPacket(enviaEscolhido.getBytes(), enviaEscolhido.length(), this.group, this.multicastPORT);
             multicast.send(data);
+        } catch (Exception e) {
         }
-        catch(Exception e){}
     }
 
-    public void armazenaEscolhid(String[] mensagem, MulticastSocket multicast){
-        
+    public void armazenaEscolhid(String[] mensagem, MulticastSocket multicast) {
     }
-    
+
+    //Método para verificar qual o mais escolhid
+    public int majoritario() {
+        int um = 0;
+        int zero = 0;
+
+        Iterator membros = this.membros.iterator();
+        while (membros.hasNext()) {
+            PK st = (PK) membros.next();
+            if (st.valor_gerado == 1) {
+                um++;
+            }
+            if (st.valor_gerado == 0) {
+                zero++;
+            }
+        }
+        return um > zero? 1 : 0;
+    }
 }
 
-class PK{
+class PK {
+
     //ID dos usuários
     int id;
     //Chave Pública
@@ -211,8 +241,9 @@ class PK{
     //String chavePrivada;
     //Valor a ser enviado
     int valor_gerado;
-    PK(int id, int c){
+
+    PK(int id, int c) {
         this.id = id;
-        this.valor_gerado=c; 
+        this.valor_gerado = c;
     }
 }
