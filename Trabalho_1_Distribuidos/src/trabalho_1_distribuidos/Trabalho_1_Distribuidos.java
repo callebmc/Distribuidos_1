@@ -46,6 +46,8 @@ public class Trabalho_1_Distribuidos {
         while (running) {
             //Menu de opções
             Thread.sleep(2000);
+            //ACHO QUE NÃO VAI TER ESSE MENU, VAI SER AUTOMÁTICO QUANDO OS 5 ENTRAREM
+            //VAI SER UM FOR MALUCO
             System.out.println("Status atual");
             System.out.println("O que deseja fazer?");
             System.out.println("1 - Envia Valores 1");
@@ -72,21 +74,6 @@ public class Trabalho_1_Distribuidos {
 
     static void main() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-}
-
-class PK{
-    //ID dos usuários
-    int id;
-    //Chave Pública
-    //String chavePublica;
-    //Chave Privada
-    //String chavePrivada;
-    //Valor a ser enviado
-    int valor_gerado;
-    PK(int id, int c){
-        this.id = id;
-        this.valor_gerado=c; 
     }
 }
 
@@ -143,6 +130,7 @@ final class Processo {
         this.id = rand.nextInt(100) + 1;
     }
 
+    //Método para gerar valor do Consenso
     public void geraAleatorio() {
         //Gera valor entre 0 e 1
         Random rand = new Random();
@@ -150,6 +138,7 @@ final class Processo {
     }
 
     /*********************MÉTODOS PARA ARMAZENAR INFORMAÇÕES COMO ID E CHAVE DE TODOS OS MEMBROS****************/
+    //Método para informar que entrou no multicast
     public void entraGrupo(MulticastSocket multicast) {
         try {
             String mensagemDeEntrada = "NovoNoGrupo" + CRLF;
@@ -184,6 +173,7 @@ final class Processo {
         }
     }
     
+    //Método para adicionar na lista se não for ele mesmo que enviou
     public void trataRespostaDoGrupo(String[] mensagem, MulticastSocket multicast){
         try{
             if(Integer.parseInt(mensagem[1])==(this.id) && Integer.parseInt(mensagem[4])!=this.id){
@@ -210,4 +200,19 @@ final class Processo {
         
     }
     
+}
+
+class PK{
+    //ID dos usuários
+    int id;
+    //Chave Pública
+    //String chavePublica;
+    //Chave Privada
+    //String chavePrivada;
+    //Valor a ser enviado
+    int valor_gerado;
+    PK(int id, int c){
+        this.id = id;
+        this.valor_gerado=c; 
+    }
 }
