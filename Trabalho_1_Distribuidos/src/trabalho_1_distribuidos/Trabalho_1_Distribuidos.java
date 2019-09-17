@@ -33,19 +33,17 @@ public class Trabalho_1_Distribuidos {
         listenerThread.start();
         System.out.println("Entramos!");
 
-//        //Aguarda entrar os 5 processos
-//        while (processo.membros.size() < processo.minUsuarios) {
-//            System.out.println("Aguardando.... Numero de usuarios: " + processo.membros.size() + " de " + processo.minUsuarios);
-//            Thread.sleep(2000);
-//        }
         processo.geraId();
+        processo.geraAleatorio();
         processo.entraGrupo(multicast);
+        //Aguarda entrar os 5 processos
+        while (processo.membros.size() < processo.minUsuarios) {
+            System.out.println("Aguardando.... Numero de usuarios: " + processo.membros.size() + " de " + processo.minUsuarios);
+            Thread.sleep(5000);
+        }
 
         boolean running = true;
         while (running) {
-            //Gera valor aleatório
-            processo.geraAleatorio();
-
             //Menu de opções
             Thread.sleep(2000);
             System.out.println("Status atual");
@@ -77,6 +75,21 @@ public class Trabalho_1_Distribuidos {
     }
 }
 
+class PK{
+    //ID dos usuários
+    int id;
+    //Chave Pública
+    //String chavePublica;
+    //Chave Privada
+    //String chavePrivada;
+    //Valor a ser enviado
+    int valor_gerado;
+    PK(int id, int c){
+        this.id = id;
+        this.valor_gerado=c; 
+    }
+}
+
 final class Processo {
 
     //Propriedas do processo
@@ -90,16 +103,13 @@ final class Processo {
      * **********Propriedades do PhaseKing**************
      */
     //ID do processo
-    public int id = 0;
-    //ID dos usuários
-    public int[] qtdMembros = new int[5];
+    int id = 0;
     //Lista dos usuários
-    public ArrayList<String> membros = new ArrayList<String>();
+    public ArrayList<PK> membros = new ArrayList<PK>();
     //Array para receber valores
     public int[] valores = new int[5];
-    //Valor a ser enviado
-    public int c;
-
+    //Valor gerado 1 ou 0
+    int c;
     //Método para escutar multicast
     public void listenMulticast(MulticastSocket multicast) {
         try {
@@ -115,6 +125,9 @@ final class Processo {
                     case "NovoNoGrupo":
                         this.adicionaNoGrupo(mensagem, multicast);
                         break;
+                    case "RespostaDoGrupo":
+                        this.trataRespostaDoGrupo(mensagem, multicast);
+                        break;
                     case "CompartilharValor":
                         System.out.println(mensagem[1]);
                         break;
@@ -124,28 +137,10 @@ final class Processo {
         }
     }
 
-    //Método para gerar ID sequencial de 1 a 5
+    //Método para gerar ID  
     public void geraId() {
-        boolean ok = true;
-        int aux = 0;
-        while (id == 0 && ok) {
-            Random rand = new Random();
-            aux = rand.nextInt(5) + 1;
-            for (int i = 0; i < 5; i++) {
-                if (this.qtdMembros[i] != aux) {
-                    this.id = aux;
-                    ok = true;
-                } else {
-                    this.id = 0;
-                }
-            }
-        }
-        for (int i = 0; i < 5; i++) {
-            if (this.qtdMembros[i] == 0) {
-                this.qtdMembros[i] = aux;
-                break;
-            }
-        }
+        Random rand = new Random();
+        this.id = rand.nextInt(100) + 1;
     }
 
     public void geraAleatorio() {
@@ -158,7 +153,10 @@ final class Processo {
     public void entraGrupo(MulticastSocket multicast) {
         try {
             String mensagemDeEntrada = "NovoNoGrupo" + CRLF;
-            mensagemDeEntrada += this.id;
+            // ORIGEM
+            mensagemDeEntrada += this.id + CRLF; 
+            // VALOR GERADo
+            mensagemDeEntrada += this.c;        
             DatagramPacket data = new DatagramPacket(mensagemDeEntrada.getBytes(), mensagemDeEntrada.length(), this.group, this.multicastPORT);
             multicast.send(data);
         } catch (Exception e) {
@@ -167,16 +165,33 @@ final class Processo {
     
     public void adicionaNoGrupo(String[] mensagem, MulticastSocket multicast){
         try{
-            for (int i = 0; i < 5; i++) {
-            if (this.qtdMembros[i] == 0) {
-                this.qtdMembros[i] = Integer.parseInt(mensagem[1]);
-                break;
-            }
+            PK pk1 = new PK(Integer.parseInt(mensagem[1]), Integer.parseInt(mensagem[2]));
+            this.membros.add(pk1);
+            
+            String resposta = "RespostaDoGrupo" + CRLF;
+            //Destinatário
+            resposta += mensagem[1] + CRLF;
+            //Conteudo
+            resposta += this.id + CRLF;
+            resposta += this.c + CRLF;
+            //Origem
+            resposta += this.id;
+            DatagramPacket data = new DatagramPacket(resposta.getBytes(), resposta.length(), this.group, this.multicastPORT);
+            multicast.send(data);
             System.out.println("Adicionado membro " + mensagem[1]);
-        }
         }
         catch(Exception e){
         }
+    }
+    
+    public void trataRespostaDoGrupo(String[] mensagem, MulticastSocket multicast){
+        try{
+            if(Integer.parseInt(mensagem[1])==(this.id) && Integer.parseInt(mensagem[4])!=this.id){
+               PK pk1 = new PK(Integer.parseInt(mensagem[2]), Integer.parseInt(mensagem[3]));
+               this.membros.add(pk1);
+            }
+        }
+        catch(Exception e){}
     }
     /*********************MÉTODOS PARA ARMAZENAR INFORMAÇÕES COMO ID E CHAVE DE TODOS OS MEMBROS****************/
     
@@ -190,6 +205,9 @@ final class Processo {
         }
         catch(Exception e){}
     }
-    
+
+    public void armazenaEscolhid(String[] mensagem, MulticastSocket multicast){
+        
+    }
     
 }
