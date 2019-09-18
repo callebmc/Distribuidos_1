@@ -17,6 +17,13 @@ import java.util.Random;
 public class Trabalho_1_Distribuidos {
 
     public static void main(String argv[]) throws Exception {
+        
+        /* ana: tive que colocar pra rodar no meu mac, ele espera ipv6 por default, se der zica no seu comenta a linha abaixo*/
+        System.setProperty("java.net.preferIPv4Stack" , "true");
+        
+        int max_falhas, n_processos, fases, i = 0; 
+         
+        
         final Processo processo = new Processo();
         Scanner scanner = new Scanner(System.in);
         System.out.println("Entrando no multicast...");
@@ -36,14 +43,80 @@ public class Trabalho_1_Distribuidos {
         processo.geraId();
         processo.geraAleatorio();
         processo.entraGrupo(multicast);
+        Thread.sleep(2000);
+
         //Aguarda entrar os 5 processos
+        //utiliza o processo.minUsuarios ou n_processos tantofaz
         while (processo.membros.size() < processo.minUsuarios) {
             System.out.println("Aguardando.... Numero de usuarios: " + processo.membros.size() + " de " + processo.minUsuarios);
             Thread.sleep(5000);
         }
 
         boolean running = true;
-        while (running) {
+       
+        n_processos = 5; //total de processos por definição. 
+        max_falhas = 1; //falhas toleradas
+        fases = 0; //quantos reis já foram
+        int n_fases = 2;
+        int v = 0; //padrão só
+        int majority = v, mult = 0, tiebreaker;
+        
+        
+        // ******* PHASE KING *********
+        while (running){
+            Thread.sleep(2000);
+            
+            //elege king pelo maior id;
+            int m = 0;
+          
+            
+            //PRIMEIRO ROUND - each process sends its estimate to all other processes.
+            Iterator membros = processo.membros.iterator();
+            PK king = processo.membros.get(i); //inicializando variável só pra tirar warning
+            
+            while (membros.hasNext()) {
+                PK st = (PK) membros.next();
+                //o nome da função é broadcast mas ele faz multicast rs
+                processo.broadcast(multicast, st.valor_gerado); //ajustar multicast
+                majority = processo.majoritario();
+                
+                //ja que ta na iteração escolhe o king aqui
+                if (st.id > m){
+                    king = st;
+                }
+            }
+            
+            //FIM PRIMEIRO ROUND
+            
+            //SEGUNDO ROUND
+               //tem que passar os métodos pra classe PK?
+               processo.broadcast(multicast, majority);
+            
+            tiebreaker = king.valor_gerado;
+            //verifica se está dentro do numero tolerável de falhas
+            if ((n_processos - processo.mult) > max_falhas){
+                v = majority;
+            }
+            else{
+                v = tiebreaker;
+            }
+            
+            //tiebreaker???
+            
+            
+            //FIM SEGUNDO ROUND
+            
+            fases++;
+            
+            //verifica atingiu o numero maximo de fases
+            if (fases >= n_fases){
+                running = false; //sai do loop
+                System.out.println("Fase " + fases + ": O valor final do consenso binário nesta fase é " + v);
+            }
+            
+            
+        }
+        /*while (running) {
             //Menu de opções
             Thread.sleep(2000);
             //ACHO QUE NÃO VAI TER ESSE MENU, VAI SER AUTOMÁTICO QUANDO OS 5 ENTRAREM
@@ -70,7 +143,7 @@ public class Trabalho_1_Distribuidos {
                     running = false;
                     break;
             }
-        }
+        }*/
         System.out.println("Encerrando processo...");
         processo.running = false;
         multicast.close();
@@ -92,6 +165,9 @@ final class Processo {
     final static String CRLF = ",";
     public boolean running = true;
     public int minUsuarios = 5;
+    public int mult;
+    public int n_falhas = 0; 
+    public int max_falhas = 1;
     /**
      * **********Propriedades do PhaseKing**************
      */
@@ -137,7 +213,14 @@ final class Processo {
     public void geraId() {
         Random rand = new Random();
         this.id = rand.nextInt(100) + 1;
+        Iterator membros = this.membros.iterator();
+            while (membros.hasNext()) {
+                PK st = (PK) membros.next();
+                if (this.id == st.id) //garantindo que eh identificação unica. 
+                    this.geraId(); 
+            }
     }
+    
 
     //Método para gerar valor do Consenso
     public void geraAleatorio() {
@@ -156,6 +239,7 @@ final class Processo {
             String mensagemDeEntrada = "NovoNoGrupo" + CRLF;
             // ORIGEM
             mensagemDeEntrada += this.id + CRLF;
+            
             // VALOR GERADo
             mensagemDeEntrada += this.c;
             DatagramPacket data = new DatagramPacket(mensagemDeEntrada.getBytes(), mensagemDeEntrada.length(), this.group, this.multicastPORT);
@@ -218,6 +302,22 @@ final class Processo {
                 zero++;
             }
         }
+        
+        if (um > zero){
+            if (zero > this.max_falhas){
+                System.out.println ("HALT");
+            }
+            this.mult = um;
+        }
+        
+        else if (zero > um){
+            if (um > this.max_falhas){
+                System.out.println("HALT!");
+            }
+            this.mult = zero;
+        }
+                
+        //nao entendi
         while (membros.hasNext()) {
             PK st = (PK) membros.next();
             if(st.id == this.id){
@@ -231,11 +331,16 @@ final class Processo {
                 }
             }
         }
+        
+        
         return um > zero ? 1 : 0;
     }
 
+    //mudar para multicast
     //ENVIA NOVO VALOR DE 0/1 AO MULTICAST
-    public void broadcast(MulticastSocket multicast) {
+    //@ param: faz multicast do valor escolhido
+    
+    public void broadcast(MulticastSocket multicast, int valor) {
         try {
             String enviaEscolhido = "CompartilharValor" + CRLF;
             DatagramPacket data = new DatagramPacket(enviaEscolhido.getBytes(), enviaEscolhido.length(), this.group, this.multicastPORT);
@@ -282,6 +387,7 @@ class PK {
 
     //ID dos usuários
     int id;
+    int position;
     //Chave Pública
     //String chavePublica;
     //Chave Privada
@@ -292,7 +398,9 @@ class PK {
     int majoritario = 0;
 
     PK(int id, int c) {
+        System.out.println(12);
         this.id = id;
         this.valor_gerado = c;
     }
+    
 }
