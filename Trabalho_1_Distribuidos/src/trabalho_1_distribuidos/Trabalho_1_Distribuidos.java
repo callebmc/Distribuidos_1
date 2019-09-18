@@ -218,6 +218,19 @@ final class Processo {
                 zero++;
             }
         }
+        while (membros.hasNext()) {
+            PK st = (PK) membros.next();
+            if(st.id == this.id){
+                if(um>zero){
+                    st.majoritario = 1;
+                    st.valor_qtd = um;
+                } 
+                else{
+                    st.majoritario = 0;
+                    st.valor_qtd = zero;
+                }
+            }
+        }
         return um > zero ? 1 : 0;
     }
 
@@ -247,7 +260,6 @@ final class Processo {
     //Atualiza os valores novos
     public void recebeEscolhido(String[] mensagem, MulticastSocket multicast) {
         try {
-            //if (Integer.parseInt(mensagem[1]) == (this.id) && Integer.parseInt(mensagem[4]) != this.id) {
             Iterator membros = this.membros.iterator();
             while (membros.hasNext()) {
                 PK st = (PK) membros.next();
@@ -255,11 +267,11 @@ final class Processo {
                     st.valor_gerado = Integer.parseInt(mensagem[2]);
                 }
             }
-            //}
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
         }
     }
-    
+
     /**
      * *******************MÉTODOS PARA ENVIAR O VALOR ESCOLHIDO PARA TODOS OS
      * MEMBROS**************************
@@ -276,6 +288,8 @@ class PK {
     //String chavePrivada;
     //Valor a ser enviado
     int valor_gerado;
+    int valor_qtd = 0;
+    int majoritario = 0;
 
     PK(int id, int c) {
         this.id = id;
