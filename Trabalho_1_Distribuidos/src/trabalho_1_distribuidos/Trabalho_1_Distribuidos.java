@@ -23,7 +23,6 @@ public class Trabalho_1_Distribuidos {
         
         int max_falhas, n_processos, fases, i = 0; 
          
-        
         final Processo processo = new Processo();
         Scanner scanner = new Scanner(System.in);
         System.out.println("Entrando no multicast...");
@@ -56,12 +55,11 @@ public class Trabalho_1_Distribuidos {
        
         n_processos = 5; //total de processos por definição. 
         max_falhas = 1; //falhas toleradas
-        fases = 0; //quantos reis já foram
+        fases = 1; //quantos reis já foram
         int n_fases = 2;
         int v = 0; //padrão só
         int majority = v, mult = 0, tiebreaker;
-        
-        
+
         // ******* PHASE KING *********
         while (running){
             Thread.sleep(2000);
@@ -69,81 +67,42 @@ public class Trabalho_1_Distribuidos {
             //elege king pelo maior id;
             int m = 0;
           
-            
             //PRIMEIRO ROUND - each process sends its estimate to all other processes.
             Iterator membros = processo.membros.iterator();
+            //primeiro rei sempre vai ser a posição 
             PK king = processo.membros.get(i); //inicializando variável só pra tirar warning
             
+            //na primeira fase o king sempre vai ser a primeiro posicao pq nao implementamos a chave
             while (membros.hasNext()) {
                 PK st = (PK) membros.next();
-                //o nome da função é broadcast mas ele faz multicast rs
-                processo.broadcast(multicast, st.valor_gerado); //ajustar multicast
+                //FAZ MULTICAST DOS VALORES 
+                processo.fazMulticast(multicast); //ajustar multicast
                 majority = processo.majoritario();
                 
-                //ja que ta na iteração escolhe o king aqui
-                if (st.id > m){
+                //Escolhe o próximo King com o maior ID caso tenha alterado de fase 
+                if (st.id > m && fases > 1){
+                    m = st.id;
                     king = st;
+                    System.out.println("Maior valor: " + king.id);
                 }
             }
             
             //FIM PRIMEIRO ROUND
             
             //SEGUNDO ROUND
-               //tem que passar os métodos pra classe PK?
-               processo.broadcast(multicast, majority);
-            
-            tiebreaker = king.valor_gerado;
-            //verifica se está dentro do numero tolerável de falhas
-            if ((n_processos - processo.mult) > max_falhas){
-                v = majority;
-            }
-            else{
-                v = tiebreaker;
-            }
-            
-            //tiebreaker???
-            
+            //tem que passar os métodos pra classe PK?
+            processo.enviaTiebraker(multicast, king.valor_gerado, king.id);
             
             //FIM SEGUNDO ROUND
-            
-            fases++;
-            
+
             //verifica atingiu o numero maximo de fases
             if (fases >= n_fases){
                 running = false; //sai do loop
-                System.out.println("Fase " + fases + ": O valor final do consenso binário nesta fase é " + v);
+                System.out.println("Fase " + fases + ": O valor final do consenso binário nesta fase é " + processo.v);
             }
             
-            
+            fases++;
         }
-        /*while (running) {
-            //Menu de opções
-            Thread.sleep(2000);
-            //ACHO QUE NÃO VAI TER ESSE MENU, VAI SER AUTOMÁTICO QUANDO OS 5 ENTRAREM
-            //VAI SER UM FOR MALUCO
-            System.out.println("Status atual");
-            System.out.println("O que deseja fazer?");
-            System.out.println("2 - Ve o majoritario");
-            System.out.println("3 - Broadcast");
-            System.out.println("5 - Sair");
-            int opt = Integer.parseInt(scanner.nextLine());
-            switch (opt) {
-                case 1:
-                    break;
-                case 2:
-                    System.out.println("O valor maior foi " + processo.majoritario());
-                    break;
-                case 3:
-                    processo.broadcast(multicast);
-                    break;
-                case 5:
-                    System.out.println("Estou saindo amigos");
-                    multicast.leaveGroup(processo.group);
-                    multicast.close();
-                    running = false;
-                    break;
-            }
-        }*/
         System.out.println("Encerrando processo...");
         processo.running = false;
         multicast.close();
@@ -179,6 +138,8 @@ final class Processo {
     public int[] valores = new int[5];
     //Valor gerado 1 ou 0
     int c;
+    //Valor escolhido final
+    int v =0;
 
     //Método para escutar multicast
     public void listenMulticast(MulticastSocket multicast) {
@@ -203,9 +164,14 @@ final class Processo {
                         break;
                     case "ReenviandoValores":
                         this.recebeEscolhido(mensagem, multicast);
+                        break;
+                    case "EnviaTiebraker":
+                        this.trataTiebraker(mensagem, multicast);
+                        break;
+                        
                 }
             }
-        } catch (Exception e) {
+        } catch (Exception e) {     
         }
     }
 
@@ -317,9 +283,10 @@ final class Processo {
             this.mult = zero;
         }
                 
-        //nao entendi
-        while (membros.hasNext()) {
-            PK st = (PK) membros.next();
+        //Pra atualizar o valor de majo e mult na classe PK do projeto
+        Iterator membrosAux = this.membros.iterator();
+        while (membrosAux.hasNext()) {
+            PK st = (PK) membrosAux.next();
             if(st.id == this.id){
                 if(um>zero){
                     st.majoritario = 1;
@@ -340,7 +307,7 @@ final class Processo {
     //ENVIA NOVO VALOR DE 0/1 AO MULTICAST
     //@ param: faz multicast do valor escolhido
     
-    public void broadcast(MulticastSocket multicast, int valor) {
+    public void fazMulticast (MulticastSocket multicast) {
         try {
             String enviaEscolhido = "CompartilharValor" + CRLF;
             DatagramPacket data = new DatagramPacket(enviaEscolhido.getBytes(), enviaEscolhido.length(), this.group, this.multicastPORT);
@@ -377,6 +344,33 @@ final class Processo {
         }
     }
 
+    
+    public void enviaTiebraker(MulticastSocket multicast, int kingTie, int kingId){
+        try{
+            if(this.id == kingId){
+                System.out.println("Sou o Rei" + this.id + "  " +kingTie);
+                String tiebraker = "EnvioTiebraker" + CRLF;
+                tiebraker += kingTie + CRLF;
+                DatagramPacket data= new DatagramPacket(tiebraker.getBytes(), tiebraker.length(), this.group, this.multicastPORT);
+                multicast.send(data); 
+            }
+        }
+        catch(Exception e){}
+    }
+    
+    public void trataTiebraker(String[] mensagem, MulticastSocket multicast){
+        try{
+            int n_processos = 5;
+            //verifica se está dentro do numero tolerável de falhas
+            if (this.mult > ((n_processos/2) + max_falhas)){
+                this.v = this.majoritario();
+            }
+            else{
+                this.v = Integer.parseInt(mensagem[1]);
+            }
+        }
+        catch(Exception e){}
+    }
     /**
      * *******************MÉTODOS PARA ENVIAR O VALOR ESCOLHIDO PARA TODOS OS
      * MEMBROS**************************
