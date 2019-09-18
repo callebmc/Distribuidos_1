@@ -50,16 +50,18 @@ public class Trabalho_1_Distribuidos {
             //VAI SER UM FOR MALUCO
             System.out.println("Status atual");
             System.out.println("O que deseja fazer?");
-            System.out.println("1 - Envia Valores 1");
             System.out.println("2 - Ve o majoritario");
+            System.out.println("3 - Broadcast");
             System.out.println("5 - Sair");
             int opt = Integer.parseInt(scanner.nextLine());
             switch (opt) {
                 case 1:
-                    processo.enviaEscolhido(multicast);
                     break;
                 case 2:
                     System.out.println("O valor maior foi " + processo.majoritario());
+                    break;
+                case 3:
+                    processo.broadcast(multicast);
                     break;
                 case 5:
                     System.out.println("Estou saindo amigos");
@@ -121,8 +123,10 @@ final class Processo {
                         this.trataRespostaDoGrupo(mensagem, multicast);
                         break;
                     case "CompartilharValor":
-                        System.out.println(mensagem[1]);
+                        this.enviaNovoEscolhido(mensagem, multicast);
                         break;
+                    case "ReenviandoValores":
+                        this.recebeEscolhido(mensagem, multicast);
                 }
             }
         } catch (Exception e) {
@@ -195,24 +199,11 @@ final class Processo {
      * *******************MÉTODOS PARA ARMAZENAR INFORMAÇÕES COMO ID E CHAVE DE
      * TODOS OS MEMBROS***************
      */
-
     /**
-     * *******************MÉTODOS PARA ENVIAR O VALOR ESCOLHIDO PARA TODOS OS MEMBROS**************************
+     * *******************MÉTODOS PARA ENVIAR O VALOR ESCOLHIDO PARA TODOS OS
+     * MEMBROS**************************
      */
-    public void enviaEscolhido(MulticastSocket multicast) {
-        try {
-            String enviaEscolhido = "CompartilharValor" + CRLF;
-            enviaEscolhido += this.c;
-            DatagramPacket data = new DatagramPacket(enviaEscolhido.getBytes(), enviaEscolhido.length(), this.group, this.multicastPORT);
-            multicast.send(data);
-        } catch (Exception e) {
-        }
-    }
-
-    public void armazenaEscolhid(String[] mensagem, MulticastSocket multicast) {
-    }
-
-    //Método para verificar qual o mais escolhid
+    //Método para verificar qual o mais escolhido
     public int majoritario() {
         int um = 0;
         int zero = 0;
@@ -227,8 +218,52 @@ final class Processo {
                 zero++;
             }
         }
-        return um > zero? 1 : 0;
+        return um > zero ? 1 : 0;
     }
+
+    //ENVIA NOVO VALOR DE 0/1 AO MULTICAST
+    public void broadcast(MulticastSocket multicast) {
+        try {
+            String enviaEscolhido = "CompartilharValor" + CRLF;
+            DatagramPacket data = new DatagramPacket(enviaEscolhido.getBytes(), enviaEscolhido.length(), this.group, this.multicastPORT);
+            multicast.send(data);
+        } catch (Exception e) {
+        }
+    }
+
+    //RETORNA A TODOS OS PROCESSOS O NOVO VALOR ESCOLHIDO
+    public void enviaNovoEscolhido(String[] mensagem, MulticastSocket multicast) {
+        try {
+            this.geraAleatorio();
+            String enviaEscolhido = "ReenviandoValores" + CRLF;
+            enviaEscolhido += this.id + CRLF;
+            enviaEscolhido += this.c + CRLF;
+            DatagramPacket data = new DatagramPacket(enviaEscolhido.getBytes(), enviaEscolhido.length(), this.group, this.multicastPORT);
+            multicast.send(data);
+        } catch (Exception e) {
+        }
+    }
+
+    //Atualiza os valores novos
+    public void recebeEscolhido(String[] mensagem, MulticastSocket multicast) {
+        try {
+            //if (Integer.parseInt(mensagem[1]) == (this.id) && Integer.parseInt(mensagem[4]) != this.id) {
+            Iterator membros = this.membros.iterator();
+            while (membros.hasNext()) {
+                PK st = (PK) membros.next();
+                if (st.id == Integer.parseInt(mensagem[1])) {
+                    st.valor_gerado = Integer.parseInt(mensagem[2]);
+                }
+            }
+            //}
+        } catch (Exception e) {
+        }
+    }
+    
+    /**
+     * *******************MÉTODOS PARA ENVIAR O VALOR ESCOLHIDO PARA TODOS OS
+     * MEMBROS**************************
+     */
 }
 
 class PK {
